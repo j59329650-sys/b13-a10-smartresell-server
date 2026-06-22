@@ -5,8 +5,8 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const client = new MongoClient(process.env.MONGO_URI);
-const db = client.db("smartresell"); // আপনার ডাটাবেসের নাম
+const { client } = require("./index.js"); 
+const db = client.db("smartresell");
 
 export const auth = betterAuth({
     database: mongodbAdapter(db),
@@ -16,7 +16,7 @@ export const auth = betterAuth({
             clientSecret: process.env.GOOGLE_CLIENT_SECRET,
         },
     },
-    // সেশন কনফিগারেশন
+    
     session: {
         cookieCache: {
             enabled: true,
