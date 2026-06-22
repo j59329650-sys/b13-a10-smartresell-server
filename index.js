@@ -1,130 +1,112 @@
-const { MongoClient, ServerApiVersion } = require("mongodb");
-const express = require("express");
-const cors = require("cors");
-const jwt = require("jsonwebtoken");
-require("dotenv").config();
+import express from 'express';
+import cors from 'cors';
+import { ObjectId } from 'mongodb';
+import dotenv from 'dotenv';
+import { client, db } from './db.js'; 
+import { toNodeHandler } from "better-auth/node";
+import { auth } from "./auth.js";
+
+dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
-
-app.use(
-  cors({
-    origin: [
-      "http://localhost:3000",
-      "https://b13-a10-smartresell-client.vercel.app",
-    ],
-    credentials: true,
-  })
-);
+// CORS এবং মিডলওয়্যার কনফিগারেশন
+app.use(cors({
+  origin: ['http://localhost:3000', 'https://b13-a10-smartresell-client.vercel.app'],
+  credentials: true
+}));
 app.use(express.json());
 
-
-const uri = process.env.MONGO_URI;
-
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  },
+// রুট বা হোম পাথ টেস্ট করার জন্য
+app.get('/', (req, res) => {
+  res.send('SmartResell Server is Running...');
 });
 
 async function run() {
   try {
-   
     await client.connect();
-    console.log("MongoDB Native Driver Connected Successfully!");
+    console.log("MongoDB connected successfully! 🚀");
 
-    
-    const db = client.db("SmartResellDB");
     const usersCollection = db.collection("users");
     const productsCollection = db.collection("products");
+    const ordersCollection = db.collection("orders");
+    const reviewsCollection = db.collection("reviews");
+    const paymentsCollection = db.collection("payments");
 
-   
-    const verifyToken = (req, res, next) => {
-      if (!req.headers.authorization) {
-        return res.status(401).send({ message: "Unauthorized Access" });
+    // Better Auth মিডলওয়্যার
+    app.use("/api/auth/*", toNodeHandler(auth));
+
+    // প্রোডাক্ট তৈরি করা (POST)
+    app.post('/products', async (req, res) => {
+      const newProduct = req.body;
+      const result = await productsCollection.insertOne(newProduct);
+      res.send(result);
+    });
+
+    // প্রোডাক্ট খোঁজা, সর্টিং এবং পেজিনেশন (GET)
+    app.get('/products', async (req, res) => {
+      const search = req.query.search || "";
+      const category = req.query.category || "";
+      const sort = req.query.sort;
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 6;
+      const skip = (page - 1) * limit;
+
+      let query = { status: "available" };
+      if (search) {
+        query.title = { $regex: search, $options: "i" }; 
       }
-      const token = req.headers.authorization.split(" ")[1];
+      if (category) {
+        query.category = category;
+      }
 
-      jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
-        if (err) {
-          return res.status(403).send({ message: "Forbidden Access" });
-        }
-        req.decoded = decoded;
-        next();
+      let sortOptions = {};
+      if (sort === "lowToHigh") sortOptions.price = 1;
+      if (sort === "highToLow") sortOptions.price = -1;
+
+      const cursor = productsCollection.find(query).sort(sortOptions).skip(skip).limit(limit);
+      const products = await cursor.toArray();
+      const totalProducts = await productsCollection.countDocuments(query);
+
+      res.send({
+        products,
+        totalPages: Math.ceil(totalProducts / limit),
+        currentPage: page
       });
-    };
-
-    app.put("/users/:email", async (req, res) => {
-      try {
-        const email = req.params.email;
-        const user = req.body;
-        const filter = { email: email };
-        const options = { upsert: true }; 
-
-        const updateDoc = {
-          $set: {
-            name: user.name,
-            email: user.email,
-            photo: user.photo || "",
-            role: user.role || "buyer",
-          },
-        };
-
-        const result = await usersCollection.updateOne(filter, updateDoc, options);
-
-        
-        const token = jwt.sign({ email: email }, process.env.ACCESS_TOKEN_SECRET, {
-          expiresIn: "1d",
-        });
-
-        res.send({ success: true, result, token });
-      } catch (error) {
-        res.status(500).send({ success: false, message: error.message });
-      }
     });
 
-    
-
-    
-    app.post("/api/products", async (req, res) => {
-      try {
-        const newProduct = req.body;
-        newProduct.createdAt = new Date(); 
-        const result = await productsCollection.insertOne(newProduct);
-        res.status(201).json({ success: true, data: result });
-      } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-      }
+    // নির্দিষ্ট একটি প্রোডাক্ট দেখা (GET)
+    app.get('/products/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }; 
+      const product = await productsCollection.findOne(query);
+      res.send(product);
     });
 
-    // ২. সব প্রোডাক্ট ডাটাবেজ থেকে আনা (GET)
-    app.get("/api/products", async (req, res) => {
-      try {
-        const products = await productsCollection
-          .find()
-          .sort({ createdAt: -1 }) // নতুন প্রোডাক্ট আগে দেখাবে
-          .toArray();
+    // অর্ডার তৈরি করা (POST)
+    app.post('/orders', async (req, res) => {
+      const orderData = req.body;
+      const result = await ordersCollection.insertOne(orderData);
+      res.send(result);
+    });
 
-        res.status(200).json({ success: true, data: products });
-      } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-      }
+    // ক্রেতার ইমেইল অনুযায়ী অর্ডার লিস্ট দেখা (GET)
+    app.get('/orders/buyer/:email', async (req, res) => {
+      const email = req.params.email;
+      const query = { "buyerInfo.email": email };
+      const result = await ordersCollection.find(query).toArray();
+      res.send(result);
     });
 
   } catch (error) {
-    console.error("❌ Database Connection Error:", error);
+    console.error("Database connection error:", error);
   }
 }
+
 run().catch(console.dir);
 
-// Root Route
-app.get("/", (req, res) => {
-  res.send("SmartResell Server is Running...");
-});
-
+// সার্ভার চালু করার কোড (এখানে বড় হাতের PORT ব্যবহার করা হয়েছে)
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`✅ Server is running on port ${PORT}`);
 });
