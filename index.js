@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({
-  origin: "http://localhost:3000", 
+  origin: ['http://localhost:3000', 'https://b13-a10-smartresell-client.vercel.app'], 
   credentials: true
 }));
 app.use(express.json());
