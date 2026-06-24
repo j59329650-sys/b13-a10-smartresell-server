@@ -101,6 +101,12 @@ async function startServer() {
         });
       }
     });
+    app.get("/api/test", (req, res) => {
+  res.json({
+    success: true,
+    message: "API working"
+  });
+});
 
     // Create Order
     app.post("/api/orders", async (req, res) => {
