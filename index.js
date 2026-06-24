@@ -1,6 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-import { ObjectId } from 'mongodb';
 import dotenv from 'dotenv';
 import { client, db } from './db.js'; 
 import { toNodeHandler } from "better-auth/node";
@@ -11,40 +10,73 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5001;
 
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://b13-a10-smartresell-client.vercel.app"
+];
 
-app.use(cors({
-  origin: ["http://localhost:3000", "https://b13-a10-smartresell-client.vercel.app"], 
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
-}));
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
 
-app.use(express.json());
+
+app.use(cors(corsOptions));
+
+
+app.options('*', cors(corsOptions));
+
+
+app.all("/api/auth/*", (req, res, next) => {
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,PATCH,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 
 app.use("/api/auth", toNodeHandler(auth));
+
+
+app.use(express.json());
 
 app.get('/', (req, res) => {
   res.send('SmartResell Server is Running...');
 });
 
-
 async function run() {
   try {
-    
     if (!client.topology || !client.topology.isConnected()) {
-        await client.connect();
+      await client.connect();
     }
-    
+
     const productsCollection = db.collection("products");
     const ordersCollection = db.collection("orders");
 
-   
+    
     app.post('/products', async (req, res) => {
       const newProduct = req.body;
       const result = await productsCollection.insertOne(newProduct);
       res.send(result);
     });
 
-   
+    
     app.get('/products', async (req, res) => {
       const { search, category, sort, page = 1, limit = 6 } = req.query;
       const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -58,11 +90,11 @@ async function run() {
       if (sort === "highToLow") sortOptions.price = -1;
 
       const products = await productsCollection.find(query)
-          .sort(sortOptions)
-          .skip(skip)
-          .limit(parseInt(limit))
-          .toArray();
-      
+        .sort(sortOptions)
+        .skip(skip)
+        .limit(parseInt(limit))
+        .toArray();
+
       const totalProducts = await productsCollection.countDocuments(query);
 
       res.send({
@@ -86,12 +118,10 @@ async function run() {
 
 run().catch(console.dir);
 
-
 export default app;
 
-
 if (process.env.NODE_ENV !== 'production') {
-    app.listen(PORT, () => {
-        console.log(`Server is running on port ${PORT}`);
-    });
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+  });
 }
