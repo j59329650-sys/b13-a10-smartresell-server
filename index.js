@@ -13,57 +13,41 @@ const PORT = process.env.PORT || 5001;
 // Middleware
 app.use(express.json());
 
-const allowedOrigins = [
-  "http://localhost:3000",
-  "https://b13-a10-smartresell-client.vercel.app",
-  "https://b13-a10-smartresell-client-c2iscl0ch-j59329650-sys-projects.vercel.app",
-];
-
 app.use(
   cors({
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
+    origin: true,
     credentials: true,
   })
 );
 
-// Better Auth Routes
+// Better Auth
 app.all("/api/auth/*", toNodeHandler(auth));
 
 // Root Route
 app.get("/", (req, res) => {
-  res.send("✅ SmartResell Server Running...");
+  res.send("SmartResell Server is Running...");
 });
 
 async function startServer() {
   try {
-    // MongoDB Connect
     await client.connect();
-    console.log("✅ MongoDB Connected");
+    console.log("MongoDB Connected");
 
     const productsCollection = db.collection("products");
     const ordersCollection = db.collection("orders");
 
     // Add Product
-    app.post("/products", async (req, res) => {
+    app.post("/api/products", async (req, res) => {
       try {
         const result = await productsCollection.insertOne(req.body);
         res.send(result);
       } catch (error) {
-        res.status(500).send({
-          success: false,
-          message: error.message,
-        });
+        res.status(500).json({ message: error.message });
       }
     });
 
     // Get Products
-    app.get("/products", async (req, res) => {
+    app.get("/api/products", async (req, res) => {
       try {
         const {
           search,
@@ -73,11 +57,9 @@ async function startServer() {
           limit = 6,
         } = req.query;
 
-        const skip = (parseInt(page) - 1) * parseInt(limit);
+        const skip = (Number(page) - 1) * Number(limit);
 
-        let query = {
-          status: "available",
-        };
+        let query = {};
 
         if (search) {
           query.title = {
@@ -92,47 +74,41 @@ async function startServer() {
 
         let sortOptions = {};
 
-        if (sort === "lowToHigh") {
-          sortOptions.price = 1;
-        }
-
-        if (sort === "highToLow") {
-          sortOptions.price = -1;
-        }
+        if (sort === "lowToHigh") sortOptions.price = 1;
+        if (sort === "highToLow") sortOptions.price = -1;
 
         const products = await productsCollection
           .find(query)
           .sort(sortOptions)
           .skip(skip)
-          .limit(parseInt(limit))
+          .limit(Number(limit))
           .toArray();
 
         const totalProducts =
           await productsCollection.countDocuments(query);
 
-        res.send({
+        res.json({
           products,
           totalPages: Math.ceil(
-            totalProducts / parseInt(limit)
+            totalProducts / Number(limit)
           ),
-          currentPage: parseInt(page),
+          currentPage: Number(page),
         });
       } catch (error) {
-        res.status(500).send({
-          success: false,
+        console.error(error);
+        res.status(500).json({
           message: error.message,
         });
       }
     });
 
     // Create Order
-    app.post("/orders", async (req, res) => {
+    app.post("/api/orders", async (req, res) => {
       try {
         const result = await ordersCollection.insertOne(req.body);
         res.send(result);
       } catch (error) {
-        res.status(500).send({
-          success: false,
+        res.status(500).json({
           message: error.message,
         });
       }
@@ -140,7 +116,7 @@ async function startServer() {
 
     if (process.env.NODE_ENV !== "production") {
       app.listen(PORT, () => {
-        console.log(` Server running on port ${PORT}`);
+        console.log(`Server running on port ${PORT}`);
       });
     }
   } catch (error) {
