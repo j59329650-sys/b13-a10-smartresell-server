@@ -20,33 +20,54 @@ app.use(
   })
 );
 
-// Better Auth
+// Better Auth Routes
 app.all("/api/auth/*", toNodeHandler(auth));
 
 // Root Route
 app.get("/", (req, res) => {
-  res.send("SmartResell Server is Running...");
+  res.send(" SmartResell Server is Running...");
+});
+
+// Test Route
+app.get("/api/test", (req, res) => {
+  res.json({
+    success: true,
+    message: "API working",
+  });
 });
 
 async function startServer() {
   try {
     await client.connect();
-    console.log("MongoDB Connected");
+    console.log(" MongoDB Connected");
 
     const productsCollection = db.collection("products");
     const ordersCollection = db.collection("orders");
 
-    // Add Product
+    
     app.post("/api/products", async (req, res) => {
       try {
-        const result = await productsCollection.insertOne(req.body);
-        res.send(result);
+        const product = req.body;
+
+        const result = await productsCollection.insertOne(product);
+
+        res.status(201).json({
+          success: true,
+          insertedId: result.insertedId,
+          acknowledged: result.acknowledged,
+          message: "Product added successfully",
+        });
       } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error("Add Product Error:", error);
+
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
       }
     });
 
-    // Get Products
+    
     app.get("/api/products", async (req, res) => {
       try {
         const {
@@ -59,7 +80,7 @@ async function startServer() {
 
         const skip = (Number(page) - 1) * Number(limit);
 
-        let query = {};
+        const query = {};
 
         if (search) {
           query.title = {
@@ -74,8 +95,13 @@ async function startServer() {
 
         let sortOptions = {};
 
-        if (sort === "lowToHigh") sortOptions.price = 1;
-        if (sort === "highToLow") sortOptions.price = -1;
+        if (sort === "lowToHigh") {
+          sortOptions.price = 1;
+        }
+
+        if (sort === "highToLow") {
+          sortOptions.price = -1;
+        }
 
         const products = await productsCollection
           .find(query)
@@ -87,7 +113,8 @@ async function startServer() {
         const totalProducts =
           await productsCollection.countDocuments(query);
 
-        res.json({
+        res.status(200).json({
+          success: true,
           products,
           totalPages: Math.ceil(
             totalProducts / Number(limit)
@@ -95,26 +122,32 @@ async function startServer() {
           currentPage: Number(page),
         });
       } catch (error) {
-        console.error(error);
+        console.error("Get Products Error:", error);
+
         res.status(500).json({
+          success: false,
           message: error.message,
         });
       }
     });
-    app.get("/api/test", (req, res) => {
-  res.json({
-    success: true,
-    message: "API working"
-  });
-});
 
-    // Create Order
+    
     app.post("/api/orders", async (req, res) => {
       try {
-        const result = await ordersCollection.insertOne(req.body);
-        res.send(result);
+        const order = req.body;
+
+        const result = await ordersCollection.insertOne(order);
+
+        res.status(201).json({
+          success: true,
+          insertedId: result.insertedId,
+          message: "Order created successfully",
+        });
       } catch (error) {
+        console.error("Order Error:", error);
+
         res.status(500).json({
+          success: false,
           message: error.message,
         });
       }
@@ -122,11 +155,11 @@ async function startServer() {
 
     if (process.env.NODE_ENV !== "production") {
       app.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
+        console.log(` Server running on port ${PORT}`);
       });
     }
   } catch (error) {
-    console.error("Server Error:", error);
+    console.error(" Server Error:", error);
   }
 }
 
