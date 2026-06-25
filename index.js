@@ -10,23 +10,27 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-// Middleware
-app.use(express.json());
-
-
+// ✅ CORS সবার আগে
 app.use(
   cors({
     origin: [
-      "http://localhost:3000", 
-      "https://b13-a10-smartresell-client.vercel.app" 
+      "http://localhost:3000",
+      "https://b13-a10-smartresell-client.vercel.app",
     ],
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   })
 );
 
-// Better Auth Routes
-app.all("/api/auth/*", toNodeHandler(auth));
+// ✅ OPTIONS preflight সব route এর জন্য
+app.options("*", cors());
+
+// ✅ Better Auth - CORS এর পরে, express.json() এর আগে
+app.all("/api/auth/{*splat}", toNodeHandler(auth));
+
+// ✅ এরপর express.json()
+app.use(express.json());
 
 // Root Route
 app.get("/", (req, res) => {
@@ -38,16 +42,14 @@ app.get("/api/test", (req, res) => {
   res.json({ success: true, message: "API working correctly" });
 });
 
-// Server Start Function
 async function startServer() {
   try {
     await client.connect();
-    console.log(" MongoDB Connected");
+    console.log("✅ MongoDB Connected");
 
     const productsCollection = db.collection("products");
     const ordersCollection = db.collection("orders");
 
-    
     app.post("/api/products", async (req, res) => {
       try {
         const product = req.body;
@@ -58,7 +60,6 @@ async function startServer() {
       }
     });
 
-   
     app.get("/api/products", async (req, res) => {
       try {
         const { search, category, sort, page = 1, limit = 6 } = req.query;
@@ -83,7 +84,7 @@ async function startServer() {
 
         res.status(200).json({
           success: true,
-          products, 
+          products,
           totalPages: Math.ceil(totalProducts / Number(limit)),
           currentPage: Number(page),
         });
@@ -92,7 +93,6 @@ async function startServer() {
       }
     });
 
-    
     app.post("/api/orders", async (req, res) => {
       try {
         const result = await ordersCollection.insertOne(req.body);
@@ -102,9 +102,8 @@ async function startServer() {
       }
     });
 
-   
     if (process.env.NODE_ENV !== "production") {
-      app.listen(PORT, () => console.log(` Server running on port ${PORT}`));
+      app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
     }
   } catch (error) {
     console.error("Server Error:", error);
