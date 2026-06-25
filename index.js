@@ -10,38 +10,32 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-
+// CORS Configuration
 const corsOptions = {
   origin: [
     "http://localhost:3000",
-    "https://b13-a10-smartresell-client.vercel.app",
+    "https://b13-a10-smartresell-client.vercel.app"
   ],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
   credentials: true,
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  exposedHeaders: ["set-cookie"], 
 };
 
+// Middleware order is critical
+app.use(express.json()); 
 app.use(cors(corsOptions));
-
-
 app.options("*", cors(corsOptions));
 
-
+// Auth Route
 app.all("/api/auth/*", toNodeHandler(auth));
 
-
-app.use(express.json());
-
-
+// Health check
 app.get("/", (req, res) => {
-  res.send("🚀 SmartResell Server is Running...");
+  res.send(" SmartResell Server is Running...");
 });
 
-
-app.get("/api/test", (req, res) => {
-  res.json({ success: true, message: "API working correctly" });
-});
-
+// Database Operations
 async function startServer() {
   try {
     await client.connect();
@@ -50,10 +44,10 @@ async function startServer() {
     const productsCollection = db.collection("products");
     const ordersCollection = db.collection("orders");
 
+    // Routes
     app.post("/api/products", async (req, res) => {
       try {
-        const product = req.body;
-        const result = await productsCollection.insertOne(product);
+        const result = await productsCollection.insertOne(req.body);
         res.status(201).json({ success: true, insertedId: result.insertedId });
       } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -69,17 +63,9 @@ async function startServer() {
         if (search) query.title = { $regex: search, $options: "i" };
         if (category && category !== "All") query.category = category;
 
-        let sortOptions = {};
-        if (sort === "lowToHigh") sortOptions.price = 1;
-        if (sort === "highToLow") sortOptions.price = -1;
+        const sortOptions = sort === "lowToHigh" ? { price: 1 } : sort === "highToLow" ? { price: -1 } : {};
 
-        const products = await productsCollection
-          .find(query)
-          .sort(sortOptions)
-          .skip(skip)
-          .limit(Number(limit))
-          .toArray();
-
+        const products = await productsCollection.find(query).sort(sortOptions).skip(skip).limit(Number(limit)).toArray();
         const totalProducts = await productsCollection.countDocuments(query);
 
         res.status(200).json({
@@ -102,8 +88,9 @@ async function startServer() {
       }
     });
 
+    // Start server only if not in Vercel production environment
     if (process.env.NODE_ENV !== "production") {
-      app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+      app.listen(PORT, () => console.log(` Server running on port ${PORT}`));
     }
   } catch (error) {
     console.error("Server Error:", error);
