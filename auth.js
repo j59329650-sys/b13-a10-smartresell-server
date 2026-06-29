@@ -8,12 +8,14 @@ dotenv.config();
 export const auth = betterAuth({
     database: mongodbAdapter(db),
 
-    baseURL: process.env.BETTER_AUTH_URL || "https://b13-a10-smartresell-server.vercel.app",
-    
-    trustedOrigins: [
-        "http://localhost:3000",
-        "https://b13-a10-smartresell-client.vercel.app"
-    ],
+    baseURL: process.env.BETTER_AUTH_URL, 
+        origin: [
+            "http://localhost:3000",
+            "https://b13-a10-smartresell-client.vercel.app"
+        ],
+        methods: ["GET", "POST", "OPTIONS"],
+        credentials: true,
+    },
 
     emailAndPassword: {
         enabled: true,
@@ -21,8 +23,8 @@ export const auth = betterAuth({
 
     socialProviders: {
         google: {
-            clientId: process.env.GOOGLE_CLIENT_ID,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            clientId: process.env.GOOGLE_CLIENT_ID!,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
         },
     },
 
