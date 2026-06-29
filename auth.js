@@ -6,35 +6,31 @@ import { db } from "./db.js";
 dotenv.config();
 
 export const auth = betterAuth({
-    database: mongodbAdapter(db),
+  database: mongodbAdapter(db),
 
-    baseURL: process.env.BETTER_AUTH_URL, 
-    
-    
-    cors: {
-        origin: [
-            "http://localhost:3000",
-            "https://b13-a10-smartresell-client.vercel.app"
-        ],
-        methods: ["GET", "POST", "OPTIONS"],
-        credentials: true,
+  baseURL: process.env.BETTER_AUTH_URL,
+
+  trustedOrigins: [
+    "http://localhost:3000",
+    "https://b13-a10-smartresell-client.vercel.app",
+    "https://b13-a10-smartresell-client-5116j4jg-j59329650-sys-projects.vercel.app",
+  ],
+
+  emailAndPassword: {
+    enabled: true,
+  },
+
+  socialProviders: {
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     },
+  },
 
-    emailAndPassword: {
-        enabled: true,
+  session: {
+    cookieCache: {
+      enabled: true,
+      maxAge: 5 * 60,
     },
-
-    socialProviders: {
-        google: {
-            clientId: process.env.GOOGLE_CLIENT_ID,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        },
-    },
-
-    session: {
-        cookieCache: {
-            enabled: true,
-            maxAge: 5 * 60
-        }
-    }
+  },
 });
