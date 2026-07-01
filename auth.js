@@ -13,9 +13,8 @@ export const auth = betterAuth({
  trustedOrigins: [
   "http://localhost:3000",
   "https://b13-a10-smartresell-client.vercel.app",
-  /^https:\/\/b13-a10-smartresell-client-.*\.vercel\.app$/,
+  "https://*.vercel.app",
 ],
-
   emailAndPassword: {
     enabled: true,
   },
