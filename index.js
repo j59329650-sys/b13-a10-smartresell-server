@@ -15,10 +15,18 @@ app.use(express.json());
 
 app.use(
   cors({
-    origin: [
-      "http://localhost:3000",
-      "https://b13-a10-smartresell-client.vercel.app",
-    ],
+    origin: function (origin, callback) {
+      if (
+        !origin ||
+        origin === "http://localhost:3000" ||
+        origin === "https://b13-a10-smartresell-client.vercel.app" ||
+        /^https:\/\/b13-a10-smartresell-client-.*\.vercel\.app$/.test(origin)
+      ) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
   })
 );
