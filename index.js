@@ -34,7 +34,15 @@ const ordersCollection = db.collection("orders");
 app.get("/", (req, res) => {
   res.send("SmartResell Server Running...");
 });
+app.get("/api/test", async (req, res) => {
+  try {
+    const users = await db.collection("user").find().toArray();
 
+    res.json(users);
+  } catch (err) {
+    res.status(500).json(err);
+  }
+});
 
 app.get("/api/products", async (req, res) => {
   try {

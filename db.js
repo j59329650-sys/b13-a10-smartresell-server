@@ -6,8 +6,15 @@ dotenv.config();
 const uri = process.env.MONGODB_URI;
 
 if (!uri) {
-  throw new Error("Please define the MONGODB_URI environment variable inside .env");
+  throw new Error("MONGODB_URI is missing");
 }
 
-export const client = new MongoClient(uri);
-export const db = client.db("smartresell");
+const client = new MongoClient(uri);
+
+await client.connect();
+
+console.log("✅ MongoDB Connected");
+
+const db = client.db("smartresell");
+
+export { client, db };
