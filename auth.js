@@ -15,6 +15,16 @@ export const auth = betterAuth({
   "https://b13-a10-smartresell-client.vercel.app",
   "https://*.vercel.app",
 ],
+  advanced: {
+    crossSubDomainCookies: {
+      enabled: false,
+    },
+    defaultCookieAttributes: {
+      sameSite: "none",
+      secure: true,
+      partitioned: true,
+    },
+  },
   emailAndPassword: {
     enabled: true,
   },
